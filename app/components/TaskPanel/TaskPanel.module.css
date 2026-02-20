@@ -1,0 +1,614 @@
+.panel {
+  width: 450px;
+  padding: 24px 32px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.panelWide {
+  width: 100%;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 4px 0;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  cursor: pointer;
+  color: #444;
+}
+
+.titleInput {
+  font-size: 1.5rem;
+  font-weight: 600;
+  border: none;
+  border-bottom: 2px solid #007bff;
+  outline: none;
+  flex: 1;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: #777;
+}
+
+.completarButton {
+  background: none;
+  border: none;
+  padding: 3px 0;
+  color: #aaa;
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0;
+  text-decoration: none;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+}
+
+.panel:hover .completarButton {
+  opacity: 1;
+}
+
+.completarButton:hover {
+  text-decoration: underline;
+  color: #666;
+}
+
+.deadlineRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px 0;
+}
+
+.deadline {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0;
+  cursor: pointer;
+}
+
+.deadlineOverdue {
+  color: #e53935;
+}
+
+.deadlineInput {
+  font-size: 0.875rem;
+  color: #666;
+  border: none;
+  border-bottom: 2px solid #007bff;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color-scheme: light;
+}
+
+.deadlineInput::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.deadlineInput::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+.buyDayButton {
+  background: none;
+  border: 1.5px solid #43a047;
+  border-radius: 10px;
+  padding: 2px 10px;
+  color: #43a047;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.buyDayButton:hover {
+  background-color: #43a047;
+  color: white;
+}
+
+.taskList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.taskItemWrapper {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.taskItemWrapper:last-child {
+  border-bottom: none;
+}
+
+.taskItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.chevron {
+  position: absolute;
+  left: -20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  font-size: 1.25rem;
+  padding: 0;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, color 0.15s ease;
+  transform: rotate(0deg);
+}
+
+.chevron:hover {
+  color: #666;
+}
+
+.chevronExpanded {
+  transform: rotate(90deg);
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  transition: all 0.15s ease;
+}
+
+.checkbox:hover {
+  border-color: #4caf50;
+}
+
+.checkboxChecked {
+  background: #43a047;
+  border-color: #43a047;
+}
+
+.checkmark {
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.taskText {
+  flex: 1;
+  cursor: pointer;
+  color: #555;
+}
+
+.taskTextCompleted {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.taskInput {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid #007bff;
+  outline: none;
+  font-size: 1rem;
+  padding: 0;
+  background: transparent;
+  color: #888;
+}
+
+.addSubtaskButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 1rem;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.taskItem:hover .addSubtaskButton {
+  opacity: 1;
+}
+
+.addSubtaskButton:hover {
+  color: #007bff;
+}
+
+.moveButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.6rem;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.taskItem:hover .moveButton {
+  opacity: 1;
+}
+
+.moveButton:hover {
+  color: #666;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.875rem;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.taskItem:hover .deleteButton {
+  opacity: 1;
+}
+
+.deleteButton:hover {
+  color: #e74c3c;
+}
+
+.subtaskList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0 32px;
+}
+
+.subtaskItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.subtaskCheckbox {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  transition: all 0.15s ease;
+}
+
+.subtaskCheckbox:hover {
+  border-color: #999;
+}
+
+.subtaskCheckboxChecked {
+  border-color: transparent;
+  background: transparent;
+}
+
+.subtaskCheckmark {
+  color: #999;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.subtaskText {
+  flex: 1;
+  cursor: pointer;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.subtaskTextCompleted {
+  text-decoration: line-through;
+  color: #aaa;
+}
+
+.subtaskInput {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid #007bff;
+  outline: none;
+  font-size: 0.9rem;
+  padding: 0;
+  background: transparent;
+  color: #888;
+}
+
+.moveSubtaskButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.5rem;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.subtaskItem:hover .moveSubtaskButton {
+  opacity: 1;
+}
+
+.moveSubtaskButton:hover {
+  color: #666;
+}
+
+.deleteSubtaskButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.75rem;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.subtaskItem:hover .deleteSubtaskButton {
+  opacity: 1;
+}
+
+.deleteSubtaskButton:hover {
+  color: #e74c3c;
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.addButton:hover {
+  color: #666;
+}
+
+.completeButton {
+  display: block;
+  margin: 16px auto 0;
+  padding: 8px 24px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.completeButton:hover {
+  background: #0056b3;
+}
+
+.emojiCelebration {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) scale(0);
+  font-size: 1.4rem;
+  pointer-events: none;
+  animation: emojiPop 1.2s ease forwards;
+}
+
+@keyframes emojiPop {
+  0% {
+    transform: translateY(-50%) scale(0) rotate(0deg);
+  }
+  10% {
+    transform: translateY(-50%) scale(0.5) rotate(-20deg);
+  }
+  20% {
+    transform: translateY(-50%) scale(0.8) rotate(0deg);
+  }
+  30% {
+    transform: translateY(-50%) scale(1) rotate(20deg);
+  }
+  40% {
+    transform: translateY(-50%) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-50%) scale(1) rotate(-20deg);
+  }
+  60% {
+    transform: translateY(-50%) scale(1) rotate(0deg);
+  }
+  70% {
+    transform: translateY(-50%) scale(1) rotate(20deg);
+  }
+  80% {
+    transform: translateY(-50%) scale(0.5) rotate(0deg);
+  }
+  90% {
+    transform: translateY(-50%) scale(0.2) rotate(-20deg);
+  }
+  100% {
+    transform: translateY(-50%) scale(0) rotate(0deg);
+  }
+}
+
+.panelReadOnly {
+  opacity: 0.85;
+  background: #f9f9f9;
+}
+
+/* Separator hit area - invisible zone between tasks */
+.separatorHitArea {
+  position: relative;
+  height: 16px;
+  margin: -8px 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.separatorPlusIcon {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 1rem;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  cursor: pointer;
+}
+
+.separatorHitArea:hover .separatorPlusIcon {
+  opacity: 1;
+}
+
+.separatorPlusIcon:hover {
+  color: #007bff;
+}
+
+/* Task item without bottom border (when followed by a created separator) */
+.taskItemWrapperNoBottomBorder {
+  border-bottom: none;
+}
+
+/* Separator item wrapper */
+.separatorWrapper {
+  list-style: none;
+  margin-top: 12px;
+}
+
+/* Active separator */
+.separatorItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 2px solid #ccc;
+  gap: 8px;
+}
+
+.separatorName {
+  flex: 1;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.separatorPlaceholder {
+  flex: 1;
+  font-size: 0.7rem;
+  color: #bbb;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.separatorItem:hover .separatorPlaceholder {
+  opacity: 1;
+}
+
+.separatorNameInput {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  outline: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0;
+  background: transparent;
+  color: #666;
+}
+
+.separatorControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.separatorItem:hover .separatorControls {
+  opacity: 1;
+}
+
+.separatorMoveButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.5rem;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.separatorMoveButton:hover {
+  color: #666;
+}
+
+.separatorDeleteButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.7rem;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.separatorDeleteButton:hover {
+  color: #e74c3c;
+}
