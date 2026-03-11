@@ -1,23 +1,41 @@
+// Main page — manages all app state (lists, coins, auth) and renders view modes
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import styles from './page.module.css';
 import TaskPanel from './components/TaskPanel';
 import DevMenu from './components/DevMenu';
+import AuthControls from './components/AuthControls';
+import type { SyncStatus } from './components/AuthControls';
 import type { RestoreData, RestoreReport, ConflictItem } from './components/DevMenu/DevMenu';
 import type { TaskPanelData, Task } from './components/TaskPanel/TaskPanel';
+import * as api from './lib/api';
+import { FlagsProvider, useFlags } from './lib/flags';
+import { BREAKPOINT_DESKTOP } from './lib/breakpoints';
 
+// Applies feature flag styles (e.g. custom background color) to the page container
+function PageContainer({ children }: { children: ReactNode }) {
+  const { flags } = useFlags();
+  const bgColor = flags.custom_bg_color as string | undefined;
+
+  return (
+    <div
+      className={styles.container}
+      style={bgColor ? { backgroundColor: `#${bgColor}` } : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
+// localStorage keys for persisting state between sessions
 const ACTIVE_KEY = 'activeLists';
 const COMPLETED_KEY = 'completedLists';
 const COINS_KEY = 'coins';
-const NOTES_KEY = 'notes';
+const TOKEN_KEY = 'authToken';
+const USERNAME_KEY = 'authUsername';
 
-interface Note {
-  id: string;
-  name: string;
-  content: string;
-}
-
+// Creates a blank task list with a timestamp-based ID
 function createEmptyList(): TaskPanelData {
   return {
     id: Date.now().toString(),
@@ -48,7 +66,16 @@ function migrateListData(list: Record<string, unknown>): TaskPanelData {
   } as TaskPanelData;
 }
 
-export default function TasksPage() {
+export default function Page() {
+  return (
+    <FlagsProvider>
+      <TasksPage />
+    </FlagsProvider>
+  );
+}
+
+function TasksPage() {
+  // Prevents localStorage writes before initial load completes
   const hydrated = useRef(false);
   const [activeLists, setActiveLists] = useState<TaskPanelData[]>([]);
   const [completedLists, setCompletedLists] = useState<TaskPanelData[]>([]);
@@ -56,40 +83,82 @@ export default function TasksPage() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [viewMode, setViewMode] = useState<'all' | 'single'>('single');
   const [currentIndex, setCurrentIndex] = useState(0);
-  // const [activeSideSection, setActiveSideSection] = useState<string | null>(null);
-  // const [notes, setNotes] = useState<Note[]>([]);
+  const [token, setToken] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
 
+  const { setFlags, clearFlags } = useFlags();
+
+  // On mobile, always use view-all (single-column). Restore user preference on desktop.
   useEffect(() => {
-    try {
-      const storedActive = localStorage.getItem(ACTIVE_KEY);
-      if (storedActive) {
-        const parsed = JSON.parse(storedActive);
-        const migrated = parsed.map((list: Record<string, unknown>) => migrateListData(list));
-        setActiveLists(migrated);
-      }
-
-      const storedCompleted = localStorage.getItem(COMPLETED_KEY);
-      if (storedCompleted) {
-        const parsed = JSON.parse(storedCompleted);
-        const migrated = parsed.map((list: Record<string, unknown>, i: number) => {
-          const migratedList = migrateListData(list);
-          return {
-            ...migratedList,
-            id: migratedList.id || `migrated-${i}-${Date.now()}`,
-          };
-        });
-        setCompletedLists(migrated);
-      }
-
-      const storedCoins = localStorage.getItem(COINS_KEY);
-      if (storedCoins) setCoins(JSON.parse(storedCoins));
-
-      // const storedNotes = localStorage.getItem(NOTES_KEY);
-      // if (storedNotes) setNotes(JSON.parse(storedNotes));
-    } catch { /* ignore parse errors */ }
-    hydrated.current = true;
+    const check = () => {
+      if (window.innerWidth < BREAKPOINT_DESKTOP) setViewMode('all');
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
+  // On mount: try API sync if logged in, otherwise load from localStorage
+  useEffect(() => {
+    const loadState = async () => {
+      const storedToken = localStorage.getItem(TOKEN_KEY);
+      const storedUsername = localStorage.getItem(USERNAME_KEY);
+
+      if (storedToken && storedUsername) {
+        setToken(storedToken);
+        setUsername(storedUsername);
+
+        // Try loading state from API (includes evaluated flags)
+        const result = await api.fetchSync(storedToken);
+        if (!api.isError(result)) {
+          setActiveLists(result.activeLists);
+          setCompletedLists(result.completedLists);
+          setCoins(result.coins);
+          if (result.flags) setFlags(result.flags);
+          hydrated.current = true;
+          return;
+        }
+        // Token expired or API down — clear auth, fall through to localStorage
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USERNAME_KEY);
+        setToken(null);
+        setUsername(null);
+      }
+
+      // Load from localStorage (flags loaded from cache by FlagsProvider)
+      try {
+        const storedActive = localStorage.getItem(ACTIVE_KEY);
+        if (storedActive) {
+          const parsed = JSON.parse(storedActive);
+          const migrated = parsed.map((list: Record<string, unknown>) => migrateListData(list));
+          setActiveLists(migrated);
+        }
+
+        const storedCompleted = localStorage.getItem(COMPLETED_KEY);
+        if (storedCompleted) {
+          const parsed = JSON.parse(storedCompleted);
+          const migrated = parsed.map((list: Record<string, unknown>, i: number) => {
+            const migratedList = migrateListData(list);
+            return {
+              ...migratedList,
+              id: migratedList.id || `migrated-${i}-${Date.now()}`,
+            };
+          });
+          setCompletedLists(migrated);
+        }
+
+        const storedCoins = localStorage.getItem(COINS_KEY);
+        if (storedCoins) setCoins(JSON.parse(storedCoins));
+      } catch { /* ignore parse errors */ }
+
+      hydrated.current = true;
+    };
+
+    loadState();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-persist state changes to localStorage (after initial hydration)
   useEffect(() => {
     if (!hydrated.current) return;
     localStorage.setItem(ACTIVE_KEY, JSON.stringify(activeLists));
@@ -105,11 +174,68 @@ export default function TasksPage() {
     localStorage.setItem(COINS_KEY, JSON.stringify(coins));
   }, [coins]);
 
-  // useEffect(() => {
-  //   if (!hydrated.current) return;
-  //   localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-  // }, [notes]);
+  // Authenticates user, replaces local state with server state
+  const handleLogin = useCallback(async (user: string, pass: string): Promise<string | null> => {
+    const result = await api.login(user, pass);
+    if (api.isError(result)) return result.error;
+    localStorage.setItem(TOKEN_KEY, result.token);
+    localStorage.setItem(USERNAME_KEY, user);
+    setToken(result.token);
+    setUsername(user);
+    setActiveLists(result.activeLists);
+    setCompletedLists(result.completedLists);
+    setCoins(result.coins);
+    if (result.flags) setFlags(result.flags);
+    return null;
+  }, [setFlags]);
 
+  // Creates account and migrates current local data to server
+  const handleRegister = useCallback(async (user: string, pass: string): Promise<string | null> => {
+    const result = await api.register(user, pass, coins, activeLists, completedLists);
+    if (api.isError(result)) return result.error;
+    localStorage.setItem(TOKEN_KEY, result.token);
+    localStorage.setItem(USERNAME_KEY, user);
+    setToken(result.token);
+    setUsername(user);
+    setActiveLists(result.activeLists);
+    setCompletedLists(result.completedLists);
+    setCoins(result.coins);
+    if (result.flags) setFlags(result.flags);
+    return null;
+  }, [coins, activeLists, completedLists, setFlags]);
+
+  // Clears all auth and app state, resets to empty
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USERNAME_KEY);
+    localStorage.removeItem(ACTIVE_KEY);
+    localStorage.removeItem(COMPLETED_KEY);
+    localStorage.removeItem(COINS_KEY);
+    setToken(null);
+    setUsername(null);
+    setSyncStatus('idle');
+    setActiveLists([]);
+    setCompletedLists([]);
+    setCoins(0);
+    setShowCompleted(false);
+    setCurrentIndex(0);
+    clearFlags();
+  }, [clearFlags]);
+
+  // Pushes current local state to server (manual sync via button)
+  const handleSync = useCallback(async () => {
+    if (!token) return;
+    setSyncStatus('syncing');
+    const result = await api.pushSync(token, coins, activeLists, completedLists);
+    if (api.isError(result)) {
+      setSyncStatus('error');
+    } else {
+      setSyncStatus('success');
+    }
+    setTimeout(() => setSyncStatus('idle'), 2000);
+  }, [token, coins, activeLists, completedLists]);
+
+  // Moves list to completed, awards coins based on days before deadline
   const handleComplete = (listId: string) => {
     const list = activeLists.find(l => l.id === listId);
     if (!list) return;
@@ -158,6 +284,23 @@ export default function TasksPage() {
     setCompletedLists(prev => prev.filter(l => l.id !== listId));
   };
 
+  const handleShare = (listId: string, username: string) => {
+    setActiveLists(prev => prev.map(l => {
+      if (l.id !== listId) return l;
+      const current = l.sharedWith || [];
+      if (current.includes(username)) return l;
+      return { ...l, sharedWith: [...current, username] };
+    }));
+  };
+
+  const handleUnshare = (listId: string, username: string) => {
+    setActiveLists(prev => prev.map(l => {
+      if (l.id !== listId) return l;
+      return { ...l, sharedWith: (l.sharedWith || []).filter(u => u !== username) };
+    }));
+  };
+
+  // Spends 1 coin to extend an overdue list's deadline by 1 day
   const handleBuyDay = (listId: string) => {
     if (coins < 1) return;
     setCoins(prev => prev - 1);
@@ -172,6 +315,7 @@ export default function TasksPage() {
     );
   };
 
+  // Merges restored backup data with current state, reports conflicts by ID
   const handleRestore = (data: RestoreData): RestoreReport => {
     const conflicts: ConflictItem[] = [];
     let activeListsAdded = 0;
@@ -268,7 +412,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className={styles.container}>
+    <PageContainer>
       {/* Top bar with controls */}
       <div className={styles.topBar}>
         <div className={styles.viewToggle}>
@@ -293,9 +437,21 @@ export default function TasksPage() {
           </button>
         </div>
 
-        <div className={styles.coinsLabel}>
-          <span className={styles.coinIcon}>&#9733;</span>
-          {coins}
+        <div className={styles.topBarCenter}>
+          <div className={styles.coinsLabel}>
+            <span className={styles.coinIcon}>&#9733;</span>
+            {coins}
+          </div>
+
+          <AuthControls
+            token={token}
+            username={username}
+            onLogin={handleLogin}
+            onRegister={handleRegister}
+            onLogout={handleLogout}
+            onSync={handleSync}
+            syncStatus={syncStatus}
+          />
         </div>
 
         <button className={styles.createButton} onClick={handleCreateNew}>
@@ -311,6 +467,10 @@ export default function TasksPage() {
               key={list.id}
               data={list}
               coins={coins}
+              isOwner={list.isOwner !== false}
+              sharedWith={list.sharedWith || []}
+              onShare={(u) => handleShare(list.id, u)}
+              onUnshare={(u) => handleUnshare(list.id, u)}
               onChange={(updated) => handleChangeList(list.id, updated)}
               onComplete={() => handleComplete(list.id)}
               onBuyDay={() => handleBuyDay(list.id)}
@@ -337,6 +497,10 @@ export default function TasksPage() {
                 data={activeLists[safeCurrentIndex]}
                 wide
                 coins={coins}
+                isOwner={activeLists[safeCurrentIndex].isOwner !== false}
+                sharedWith={activeLists[safeCurrentIndex].sharedWith || []}
+                onShare={(u) => handleShare(activeLists[safeCurrentIndex].id, u)}
+                onUnshare={(u) => handleUnshare(activeLists[safeCurrentIndex].id, u)}
                 onChange={(updated) => handleChangeList(activeLists[safeCurrentIndex].id, updated)}
                 onComplete={() => handleComplete(activeLists[safeCurrentIndex].id)}
                 onBuyDay={() => handleBuyDay(activeLists[safeCurrentIndex].id)}
@@ -404,6 +568,6 @@ export default function TasksPage() {
           completedLists={completedLists}
           onRestore={handleRestore}
         />
-    </div>
+    </PageContainer>
   );
 }

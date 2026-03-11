@@ -1,0 +1,214 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.8rem;
+  position: relative;
+}
+
+/* Logged-in: username dropdown */
+.userMenu {
+  position: relative;
+}
+
+.userMenuButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.userMenuButton:hover {
+  color: #666;
+}
+
+.arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.arrowUp {
+  transform: rotate(180deg);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  min-width: 80px;
+  z-index: 10;
+}
+
+.dropdownItem {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  font-size: 0.75rem;
+  padding: 8px 14px;
+  width: 100%;
+  text-align: center;
+  transition: color 0.15s ease, background 0.15s ease;
+  border-radius: 6px;
+}
+
+.dropdownItem:hover {
+  color: #555;
+  background: #f8f8f8;
+}
+
+/* Logged-in: sync link */
+.syncLink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 0.8rem;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.syncLink:hover {
+  color: #666;
+}
+
+.syncLink:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.syncSuccess {
+  color: #5a9e5d;
+}
+
+.syncError {
+  color: #c55;
+}
+
+/* Logged out: auth links */
+.authLinks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.textButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 0.8rem;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.textButton:hover {
+  color: #666;
+}
+
+.textButtonActive {
+  color: #666;
+}
+
+.separator {
+  color: #ccc;
+  font-size: 0.75rem;
+}
+
+/* Logged out: form row (appears below) */
+.formRow {
+  position: absolute;
+  top: calc(100% + 28px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+  min-width: 160px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.input {
+  padding: 5px 8px;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #555;
+  background: white;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input:focus {
+  border-color: #aaa;
+}
+
+.formButton {
+  margin-top: 4px;
+  background: none;
+  border: 1.5px solid #ccc;
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: #888;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.formButton:hover {
+  border-color: #999;
+  color: #666;
+}
+
+.formButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cancel {
+  position: absolute;
+  top: -18px;
+  right: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+}
+
+.cancel:hover {
+  color: #888;
+}
+
+.error {
+  color: #c55;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}

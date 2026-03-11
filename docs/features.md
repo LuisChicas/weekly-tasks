@@ -128,6 +128,12 @@ A section divider that can be inserted between tasks:
 | Checkbox | Square box | N/A | Click toggles |
 | Subtask checkbox | Circle | N/A | Click toggles |
 
+#### Sharing
+
+- **Owner view**: A "compartir" option appears in the panel menu (three-dots). Opens a share panel where usernames can be added or removed from `sharedWith`.
+- **Recipient view**: Panel shows a "shared by [username]" label. The "compartir" menu item is hidden.
+- Sharing state flows through the regular sync (`PUT /sync`) — no separate share endpoint.
+
 #### Read-Only Mode
 
 The TaskPanel supports a read-only mode used for displaying completed lists:
@@ -148,24 +154,52 @@ The TaskPanel supports a read-only mode used for displaying completed lists:
 - Checkmark: Visible icon when checked
 - Strikethrough: Applied to completed task/subtask text
 
+### AuthControls
+
+Handles user authentication and sync UI. Appears in the top bar.
+
+#### Logged In State
+
+- **Username button**: Displays the username with a dropdown arrow (▾)
+  - Clicking toggles a dropdown menu with a "log out" option
+  - Arrow rotates up when dropdown is open
+- **Sync button**: Underlined text link (no border)
+  - States: "sync" (idle), "syncing..." (in progress), "synced!" (success, green), "sync failed" (error, red)
+  - Pushes current state (coins, active lists, completed lists) to the backend
+
+#### Logged Out State
+
+- **Text links**: "log in / register" displayed inline
+- **Form**: Clicking either link reveals a vertical form below with:
+  - Username input
+  - Password input
+  - Action button ("log in" or "register")
+  - Cancel button (✕) positioned above the form
+  - Loading states: button text changes to "logging in..." or "registering..."
+  - Error messages displayed below the form
+
+#### Behavior
+
+- **Register**: Uploads current localStorage data (coins, lists) to the new account
+- **Login**: Downloads the user's data from the backend, replacing local state
+- **Logout**: Clears all localStorage data and resets the app to a blank state
+
 ### Tasks Page
 
 The tasks page manages the lifecycle of task lists: creating, editing, completing, and viewing completed lists.
 
 #### Top Bar
 
-Position: Top right corner of the page. Contains three controls in order:
+Position: Top right corner of the page. Contains three groups of controls, left to right:
 
 1. **View Toggle**: Two icon buttons separated by a "|" divider
    - Single square: Switches to focused/single view
    - Three squares: Switches to grid/all view
    - Active mode icon is filled dark, inactive is just an outline
 
-2. **Coins Display**
-   - Layout: Star icon (★) followed by the coin count
-   - Icon color: Gold (#f0a500)
-   - Text: Semi-bold, mid-gray
-   - Persisted in localStorage under the key `coins`
+2. **User Controls** (center group)
+   - **Coins Display**: Star icon (★) followed by the coin count (gold icon, semi-bold mid-gray text)
+   - **AuthControls**: Login/register links or username + sync (see AuthControls section)
 
 3. **Create Button**
    - Dashed border, text "+ create"
@@ -263,3 +297,24 @@ When restoring, lists with matching IDs are flagged as conflicts rather than ove
 
 - Number of active/completed lists added
 - Conflict details (list, task, and subtask level) with existing vs incoming values
+
+### Feature Flags
+
+Server-evaluated feature flags delivered to the frontend. Flags are provided via React Context (`FlagsProvider` + `useFlags()` hook) and cached in localStorage for offline fallback.
+
+#### How Flags Are Loaded
+
+- **Logged-in users**: Flags arrive in auth (login/register) and sync (`GET /sync`) responses — no extra API call needed
+- **Offline**: Cached flags loaded from localStorage by `FlagsProvider` on mount
+
+#### Current Flags
+
+| Flag | Type | Effect |
+|---|---|---|
+| `custom_bg_color` | string | Applied as page background color (prefixed with `#`). Empty string = no custom color |
+
+#### Architecture
+
+- `app/lib/flags.tsx` — `FlagsProvider` wraps the app, `useFlags()` returns `{ flags, setFlags, clearFlags }`
+- `PageContainer` component reads `custom_bg_color` and applies it as inline `backgroundColor` style
+- On logout, `clearFlags()` removes cached flags and resets to defaults

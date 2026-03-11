@@ -1,18 +1,48 @@
 .container {
   position: relative;
-  padding: 40px;
+  padding: 60px 12px 24px;
   min-height: 100vh;
   background-color: #fff8e7;
 }
 
+/* breakpoint: BREAKPOINT_DESKTOP (app/lib/breakpoints.ts) */
+@media (min-width: 768px) {
+  .container {
+    padding: 40px;
+  }
+}
+
 /* Top bar controls */
 .topBar {
-  position: absolute;
-  top: 16px;
-  right: 24px;
+  position: fixed;
+  top: 0;
+  right: 0;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 248, 231, 0.95);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+}
+
+@media (min-width: 768px) {
+  .topBar {
+    position: absolute;
+    top: 16px;
+    left: auto;
+    right: 24px;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+    gap: 24px;
+  }
+}
+
+.topBarCenter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .coinsLabel {
@@ -50,10 +80,16 @@
 
 /* View toggle */
 .viewToggle {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
   color: #bbb;
+}
+
+@media (min-width: 768px) {
+  .viewToggle {
+    display: flex;
+  }
 }
 
 .viewToggleButton {
@@ -129,22 +165,38 @@
 
 /* View all layout */
 .activeGridCentered {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 48px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  width: 100%;
 }
 
 .activeGrid {
   display: grid;
-  grid-template-columns: repeat(3, 450px);
-  gap: 20px;
-  margin-top: 48px;
-  width: fit-content;
-  max-width: 100%;
-  margin-left: auto;
-  margin-right: auto;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .activeGridCentered {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 48px;
+  }
+
+  .activeGrid {
+    grid-template-columns: repeat(3, 450px);
+    gap: 20px;
+    margin-top: 48px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 /* Single view layout */
@@ -152,17 +204,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  margin-top: 48px;
-  padding: 0 40px;
+  gap: 0;
+  margin-top: 16px;
+  padding: 0;
 }
 
 .singleViewPanel {
   flex: 0 0 auto;
-  width: 550px;
+  width: 100%;
 }
 
 .navArrow {
+  display: none;
   background: none;
   border: none;
   cursor: pointer;
@@ -176,6 +229,22 @@
   color: #888;
 }
 
+@media (min-width: 768px) {
+  .singleViewContainer {
+    gap: 24px;
+    margin-top: 48px;
+    padding: 0 40px;
+  }
+
+  .singleViewPanel {
+    width: 550px;
+  }
+
+  .navArrow {
+    display: block;
+  }
+}
+
 .listIndicator {
   display: flex;
   justify-content: center;
@@ -185,14 +254,21 @@
 }
 
 .indicatorDot {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: none;
   background: #ccc;
   cursor: pointer;
   padding: 0;
   transition: background 0.15s ease;
+}
+
+@media (min-width: 768px) {
+  .indicatorDot {
+    width: 8px;
+    height: 8px;
+  }
 }
 
 .indicatorDot:hover {
@@ -231,13 +307,21 @@
 
 .completedGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 450px);
-  gap: 20px;
-  margin-top: 20px;
-  width: fit-content;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
   max-width: 100%;
-  margin-left: auto;
-  margin-right: auto;
+}
+
+@media (min-width: 768px) {
+  .completedGrid {
+    grid-template-columns: repeat(auto-fill, 450px);
+    gap: 20px;
+    margin-top: 20px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 .completedPanelWrapper {
@@ -265,6 +349,12 @@
     color 0.15s ease,
     border-color 0.15s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (hover: none) {
+  .deletePanelButton {
+    opacity: 1;
+  }
 }
 
 .completedPanelWrapper:hover .deletePanelButton {

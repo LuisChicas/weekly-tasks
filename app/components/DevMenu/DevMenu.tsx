@@ -1,3 +1,4 @@
+// Dev menu — testing utilities for coins and YAML backup/restore with conflict detection
 'use client';
 
 import { useState } from 'react';
@@ -6,6 +7,7 @@ import type { TaskPanelData, Task, Separator, TaskListItem, Subtask } from '../T
 
 const BACKUP_KEY = 'dataBackup';
 
+// Loads the last backup from localStorage (if any)
 function loadBackup(): BackupData | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -67,6 +69,7 @@ function isSeparator(item: TaskListItem): item is Separator {
   return item.type === 'separator';
 }
 
+// Serializes a task (with subtasks) to YAML lines at the given indent level
 function taskToYaml(task: Task, indent: string): string[] {
   const lines: string[] = [];
   lines.push(`${indent}- type: task`);
@@ -115,6 +118,7 @@ function listToYaml(list: TaskPanelData): string[] {
   return lines;
 }
 
+// Converts full app state to a human-readable YAML string for backup
 function toYaml(coins: number, activeLists: TaskPanelData[], completedLists: TaskPanelData[]): string {
   const lines: string[] = [];
 

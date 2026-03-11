@@ -1,55 +1,26 @@
+// Task panel — manages editing state and handlers, delegates rendering to sub-components
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import styles from './TaskPanel.module.css';
+import { CELEBRATION_EMOJIS, isTask, isSeparator } from './types';
+import type { TaskPanelData, Task, Subtask, Separator } from './types';
+import TaskItem from './TaskItem';
+import SeparatorItem from './SeparatorItem';
 
-const CELEBRATION_EMOJIS = [
-  '🎉', '🌟', '🔥', '💪', '🚀', '⭐', '✨', '🎯',
-  '💥', '👏', '🏆', '💎', '🌈', '🎊', '🥳', '😎',
-];
-
-export interface Subtask {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
-export interface Task {
-  id: string;
-  type: 'task';
-  text: string;
-  completed: boolean;
-  subtasks?: Subtask[];
-}
-
-export interface Separator {
-  id: string;
-  type: 'separator';
-  name?: string;
-}
-
-export type TaskListItem = Task | Separator;
-
-export interface TaskPanelData {
-  id: string;
-  title: string;
-  deadline: string;
-  items: TaskListItem[];
-}
-
-function isTask(item: TaskListItem): item is Task {
-  return item.type === 'task';
-}
-
-function isSeparator(item: TaskListItem): item is Separator {
-  return item.type === 'separator';
-}
+// Re-export types for backward compatibility
+export type { TaskPanelData, Task, Subtask, Separator };
+export type { TaskListItem } from './types';
 
 interface TaskPanelProps {
   data: TaskPanelData;
   readOnly?: boolean;
   wide?: boolean;
   coins?: number;
+  isOwner?: boolean;
+  sharedWith?: string[];
+  onShare?: (username: string) => void;
+  onUnshare?: (username: string) => void;
   onChange?: (data: TaskPanelData) => void;
   onComplete?: () => void;
   onBuyDay?: () => void;
@@ -60,26 +31,56 @@ export default function TaskPanel({
   readOnly = false,
   wide = false,
   coins = 0,
+  isOwner = true,
+  sharedWith = [],
+  onShare,
+  onUnshare,
   onChange,
   onComplete,
   onBuyDay,
 }: TaskPanelProps) {
+  // --- Editing state (one item per category at a time) ---
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editingSeparatorId, setEditingSeparatorId] = useState<string | null>(null);
+
+  // --- Celebration animation state ---
   const [celebratingTaskId, setCelebratingTaskId] = useState<string | null>(null);
   const [celebrationEmoji, setCelebrationEmoji] = useState('');
+
+  // --- Menu state ---
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUsername, setShareUsername] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu/share panel on outside click
+  useEffect(() => {
+    if (!menuOpen && !shareOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+        setShareOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen, shareOpen]);
+
+  // --- Subtask collapse state ---
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
 
   const { title, deadline, items } = data;
-
   const tasks = items.filter(isTask);
 
+  // Helper to update data and notify parent
   const update = (partial: Partial<TaskPanelData>) => {
     onChange?.({ ...data, ...partial });
   };
+
+  // --- Derived state ---
 
   const allCompleted = tasks.length > 0 && tasks.every(task => task.completed);
 
@@ -100,10 +101,16 @@ export default function TaskPanel({
     return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
   };
 
+  // --- Title & deadline handlers ---
+
   const handleTitleSave = () => setEditingTitle(false);
   const handleDeadlineSave = () => setEditingDeadline(false);
-  const handleTaskSave = () => setEditingTaskId(null);
-  const handleSeparatorSave = () => setEditingSeparatorId(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent, saveHandler: () => void) => {
+    if (e.key === 'Enter') saveHandler();
+  };
+
+  // --- Celebration ---
 
   const triggerCelebration = useCallback((taskId: string) => {
     const emoji = CELEBRATION_EMOJIS[Math.floor(Math.random() * CELEBRATION_EMOJIS.length)];
@@ -111,6 +118,8 @@ export default function TaskPanel({
     setCelebratingTaskId(taskId);
     setTimeout(() => setCelebratingTaskId(null), 1200);
   }, []);
+
+  // --- Task handlers ---
 
   const handleToggleTask = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -152,6 +161,40 @@ export default function TaskPanel({
     update({ items: [...items, newTask] });
     setEditingTaskId(newTask.id);
   };
+
+  // Enter key in a task input creates a new task below
+  const handleTaskKeyDown = (e: React.KeyboardEvent, currentTaskId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const currentIndex = items.findIndex(item => item.id === currentTaskId);
+      if (currentIndex === -1) return;
+
+      const newTask: Task = {
+        id: Date.now().toString(),
+        type: 'task',
+        text: '',
+        completed: false,
+        subtasks: [],
+      };
+
+      const newItems = [...items];
+      newItems.splice(currentIndex + 1, 0, newTask);
+      update({ items: newItems });
+      setEditingTaskId(newTask.id);
+    }
+  };
+
+  const handleMoveItem = (itemId: string, direction: 'up' | 'down') => {
+    const index = items.findIndex(item => item.id === itemId);
+    if (index === -1) return;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= items.length) return;
+    const newItems = [...items];
+    [newItems[index], newItems[newIndex]] = [newItems[newIndex], newItems[index]];
+    update({ items: newItems });
+  };
+
+  // --- Subtask handlers ---
 
   const handleAddSubtask = (taskId: string) => {
     const newSubtask: Subtask = {
@@ -216,16 +259,6 @@ export default function TaskPanel({
     if (editingSubtaskId === subtaskId) setEditingSubtaskId(null);
   };
 
-  const handleMoveItem = (itemId: string, direction: 'up' | 'down') => {
-    const index = items.findIndex(item => item.id === itemId);
-    if (index === -1) return;
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= items.length) return;
-    const newItems = [...items];
-    [newItems[index], newItems[newIndex]] = [newItems[newIndex], newItems[index]];
-    update({ items: newItems });
-  };
-
   const handleMoveSubtask = (taskId: string, subtaskId: string, direction: 'up' | 'down') => {
     update({
       items: items.map(item => {
@@ -242,59 +275,7 @@ export default function TaskPanel({
     });
   };
 
-  const handleSubtaskSave = () => setEditingSubtaskId(null);
-
-  // Separator handlers
-  const handleAddSeparator = (afterIndex: number) => {
-    const newSeparator: Separator = {
-      id: Date.now().toString(),
-      type: 'separator',
-    };
-    const newItems = [...items];
-    newItems.splice(afterIndex + 1, 0, newSeparator);
-    update({ items: newItems });
-  };
-
-  const handleDeleteSeparator = (separatorId: string) => {
-    update({ items: items.filter(item => item.id !== separatorId) });
-    if (editingSeparatorId === separatorId) setEditingSeparatorId(null);
-  };
-
-  const handleSeparatorNameChange = (separatorId: string, name: string) => {
-    update({
-      items: items.map(item =>
-        isSeparator(item) && item.id === separatorId ? { ...item, name } : item
-      ),
-    });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, saveHandler: () => void) => {
-    if (e.key === 'Enter') saveHandler();
-  };
-
-  // Create new task after current one on Enter
-  const handleTaskKeyDown = (e: React.KeyboardEvent, currentTaskId: string) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const currentIndex = items.findIndex(item => item.id === currentTaskId);
-      if (currentIndex === -1) return;
-
-      const newTask: Task = {
-        id: Date.now().toString(),
-        type: 'task',
-        text: '',
-        completed: false,
-        subtasks: [],
-      };
-
-      const newItems = [...items];
-      newItems.splice(currentIndex + 1, 0, newTask);
-      update({ items: newItems });
-      setEditingTaskId(newTask.id);
-    }
-  };
-
-  // Create new subtask after current one on Enter
+  // Enter key in a subtask input creates a new subtask below
   const handleSubtaskKeyDown = (e: React.KeyboardEvent, taskId: string, subtaskId: string) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -325,10 +306,33 @@ export default function TaskPanel({
     }
   };
 
-  // Get index of item in items array for move button visibility
-  const getItemIndex = (itemId: string) => items.findIndex(item => item.id === itemId);
+  // --- Separator handlers ---
 
-  // Toggle subtask visibility
+  const handleAddSeparator = (afterIndex: number) => {
+    const newSeparator: Separator = {
+      id: Date.now().toString(),
+      type: 'separator',
+    };
+    const newItems = [...items];
+    newItems.splice(afterIndex + 1, 0, newSeparator);
+    update({ items: newItems });
+  };
+
+  const handleDeleteSeparator = (separatorId: string) => {
+    update({ items: items.filter(item => item.id !== separatorId) });
+    if (editingSeparatorId === separatorId) setEditingSeparatorId(null);
+  };
+
+  const handleSeparatorNameChange = (separatorId: string, name: string) => {
+    update({
+      items: items.map(item =>
+        isSeparator(item) && item.id === separatorId ? { ...item, name } : item
+      ),
+    });
+  };
+
+  // --- Collapse ---
+
   const toggleSubtasksCollapsed = (taskId: string) => {
     setCollapsedTasks(prev => {
       const next = new Set(prev);
@@ -341,8 +345,11 @@ export default function TaskPanel({
     });
   };
 
+  // --- Render ---
+
   return (
     <div className={`${styles.panel} ${readOnly ? styles.panelReadOnly : ''} ${wide ? styles.panelWide : ''}`}>
+      {/* Title row */}
       <div className={styles.titleRow}>
         {!readOnly && editingTitle ? (
           <input
@@ -365,15 +372,94 @@ export default function TaskPanel({
         )}
 
         {!readOnly && (
-          <button
-            className={styles.completarButton}
-            onClick={onComplete}
-          >
-            descartar
-          </button>
+          <div className={styles.menuContainer} ref={menuRef}>
+            <button
+              className={styles.menuButton}
+              onClick={() => setMenuOpen(prev => !prev)}
+            >
+              ⋮
+            </button>
+            {menuOpen && (
+              <div className={styles.menuDropdown}>
+                {isOwner && (
+                  <button
+                    className={styles.menuItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShareOpen(true);
+                    }}
+                  >
+                    compartir
+                  </button>
+                )}
+                <button
+                  className={styles.menuItem}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onComplete?.();
+                  }}
+                >
+                  completar
+                </button>
+              </div>
+            )}
+            {shareOpen && (
+              <div className={styles.sharePanel}>
+                {sharedWith.length > 0 && (
+                  <ul className={styles.sharedUsersList}>
+                    {sharedWith.map(u => (
+                      <li key={u} className={styles.sharedUser}>
+                        <span>{u}</span>
+                        <button
+                          className={styles.unshareButton}
+                          onClick={() => { onUnshare?.(u); }}
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <input
+                  className={styles.shareInput}
+                  type="text"
+                  placeholder="username"
+                  value={shareUsername}
+                  onChange={e => setShareUsername(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && shareUsername.trim()) {
+                      onShare?.(shareUsername.trim());
+                      setShareUsername('');
+                      setShareOpen(false);
+                    }
+                  }}
+                  autoFocus
+                />
+                <button
+                  className={styles.shareButton}
+                  onClick={() => {
+                    if (shareUsername.trim()) {
+                      onShare?.(shareUsername.trim());
+                      setShareUsername('');
+                      setShareOpen(false);
+                    }
+                  }}
+                >
+                  compartir
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
+      {/* Shared by label (non-owners only) */}
+      {data.ownerUsername && !isOwner && (
+        <p className={styles.sharedByLabel}>shared by {data.ownerUsername}</p>
+      )}
+
+      {/* Deadline row */}
       <div className={styles.deadlineRow}>
         {!readOnly && editingDeadline ? (
           <input
@@ -396,255 +482,76 @@ export default function TaskPanel({
         )}
 
         {!readOnly && isOverdue && coins >= 1 && (
-          <button
-            className={styles.buyDayButton}
-            onClick={onBuyDay}
-          >
+          <button className={styles.buyDayButton} onClick={onBuyDay}>
             comprar 1 dia
           </button>
         )}
       </div>
 
+      {/* Task list */}
       <ul className={styles.taskList}>
         {items.map((item, itemIndex) => {
           if (isSeparator(item)) {
-            // Render separator
             return (
-              <li key={item.id} className={styles.separatorWrapper}>
-                <div className={styles.separatorItem}>
-                  {!readOnly && editingSeparatorId === item.id ? (
-                    <input
-                      type="text"
-                      className={styles.separatorNameInput}
-                      value={item.name || ''}
-                      placeholder="Section name"
-                      onChange={(e) => handleSeparatorNameChange(item.id, e.target.value)}
-                      onBlur={handleSeparatorSave}
-                      onKeyDown={(e) => handleKeyDown(e, handleSeparatorSave)}
-                      autoFocus
-                    />
-                  ) : item.name ? (
-                    <span
-                      className={styles.separatorName}
-                      onClick={() => !readOnly && setEditingSeparatorId(item.id)}
-                    >
-                      {item.name}
-                    </span>
-                  ) : (
-                    <span
-                      className={styles.separatorPlaceholder}
-                      onClick={() => !readOnly && setEditingSeparatorId(item.id)}
-                    >
-                      add name
-                    </span>
-                  )}
-
-                  {!readOnly && (
-                    <div className={styles.separatorControls}>
-                      {itemIndex > 0 && (
-                        <button
-                          className={styles.separatorMoveButton}
-                          onClick={() => handleMoveItem(item.id, 'up')}
-                          title="Move up"
-                        >
-                          ▲
-                        </button>
-                      )}
-                      {itemIndex < items.length - 1 && (
-                        <button
-                          className={styles.separatorMoveButton}
-                          onClick={() => handleMoveItem(item.id, 'down')}
-                          title="Move down"
-                        >
-                          ▼
-                        </button>
-                      )}
-                      <button
-                        className={styles.separatorDeleteButton}
-                        onClick={() => handleDeleteSeparator(item.id)}
-                        title="Delete separator"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </li>
+              <SeparatorItem
+                key={item.id}
+                separator={item}
+                readOnly={readOnly}
+                isEditing={editingSeparatorId === item.id}
+                isFirst={itemIndex === 0}
+                isLast={itemIndex === items.length - 1}
+                onStartEditing={setEditingSeparatorId}
+                onStopEditing={() => setEditingSeparatorId(null)}
+                onNameChange={handleSeparatorNameChange}
+                onMove={handleMoveItem}
+                onDelete={handleDeleteSeparator}
+              />
             );
           }
 
-          // Render task
-          const task = item;
-          const taskIndex = getItemIndex(task.id);
+          // Task item — compute context for hit area and border visibility
           const prevItem = itemIndex > 0 ? items[itemIndex - 1] : null;
           const nextItem = itemIndex < items.length - 1 ? items[itemIndex + 1] : null;
           const showHitArea = !readOnly && itemIndex > 0 && (!prevItem || !isSeparator(prevItem));
-          const hideBottomBorder = nextItem && isSeparator(nextItem);
-          const hasSubtasks = task.subtasks && task.subtasks.length > 0;
-          const isCollapsed = collapsedTasks.has(task.id);
+          const hideBottomBorder = !!nextItem && isSeparator(nextItem);
 
           return (
-            <li key={task.id} className={`${styles.taskItemWrapper} ${hideBottomBorder ? styles.taskItemWrapperNoBottomBorder : ''}`}>
-              {/* Separator hit area between tasks */}
-              {showHitArea && (
-                <div
-                  className={styles.separatorHitArea}
-                  onClick={() => handleAddSeparator(itemIndex - 1)}
-                >
-                  <span className={styles.separatorPlusIcon}>+</span>
-                </div>
-              )}
-
-              <div className={styles.taskItem}>
-                {hasSubtasks && (
-                  <button
-                    className={`${styles.chevron} ${isCollapsed ? '' : styles.chevronExpanded}`}
-                    onClick={() => toggleSubtasksCollapsed(task.id)}
-                    title={isCollapsed ? 'Show subtasks' : 'Hide subtasks'}
-                  >
-                    ›
-                  </button>
-                )}
-                <div
-                  className={`${styles.checkbox} ${task.completed ? styles.checkboxChecked : ''}`}
-                  onClick={() => !readOnly && handleToggleTask(task.id)}
-                  style={readOnly ? { cursor: 'default' } : undefined}
-                >
-                  {task.completed && <span className={styles.checkmark}>✓</span>}
-                </div>
-
-                {!readOnly && editingTaskId === task.id ? (
-                  <input
-                    type="text"
-                    className={styles.taskInput}
-                    value={task.text}
-                    onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
-                    onBlur={handleTaskSave}
-                    onKeyDown={(e) => handleTaskKeyDown(e, task.id)}
-                    autoFocus
-                  />
-                ) : (
-                  <span
-                    className={`${styles.taskText} ${task.completed ? styles.taskTextCompleted : ''}`}
-                    onClick={() => !readOnly && setEditingTaskId(task.id)}
-                    style={readOnly ? { cursor: 'default' } : undefined}
-                  >
-                    {task.text || (readOnly ? '' : 'Click to edit')}
-                  </span>
-                )}
-
-                {!readOnly && (
-                  <>
-                    <button
-                      className={styles.addSubtaskButton}
-                      onClick={() => handleAddSubtask(task.id)}
-                      title="Add subtask"
-                    >
-                      +
-                    </button>
-                    {taskIndex > 0 && (
-                      <button
-                        className={styles.moveButton}
-                        onClick={() => handleMoveItem(task.id, 'up')}
-                        title="Move up"
-                      >
-                        ▲
-                      </button>
-                    )}
-                    {taskIndex < items.length - 1 && (
-                      <button
-                        className={styles.moveButton}
-                        onClick={() => handleMoveItem(task.id, 'down')}
-                        title="Move down"
-                      >
-                        ▼
-                      </button>
-                    )}
-                    <button
-                      className={styles.deleteButton}
-                      onClick={() => handleDeleteTask(task.id)}
-                    >
-                      ✕
-                    </button>
-                  </>
-                )}
-
-                {celebratingTaskId === task.id && (
-                  <span key={celebrationEmoji} className={styles.emojiCelebration}>
-                    {celebrationEmoji}
-                  </span>
-                )}
-              </div>
-
-              {hasSubtasks && !isCollapsed && (
-                <ul className={styles.subtaskList}>
-                  {task.subtasks!.map((subtask, subtaskIndex) => (
-                    <li key={subtask.id} className={styles.subtaskItem}>
-                      <div
-                        className={`${styles.subtaskCheckbox} ${subtask.completed ? styles.subtaskCheckboxChecked : ''}`}
-                        onClick={() => !readOnly && handleToggleSubtask(task.id, subtask.id)}
-                        style={readOnly ? { cursor: 'default' } : undefined}
-                      >
-                        {subtask.completed && <span className={styles.subtaskCheckmark}>✓</span>}
-                      </div>
-
-                      {!readOnly && editingSubtaskId === subtask.id ? (
-                        <input
-                          type="text"
-                          className={styles.subtaskInput}
-                          value={subtask.text}
-                          onChange={(e) => handleSubtaskTextChange(task.id, subtask.id, e.target.value)}
-                          onBlur={handleSubtaskSave}
-                          onKeyDown={(e) => handleSubtaskKeyDown(e, task.id, subtask.id)}
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          className={`${styles.subtaskText} ${subtask.completed ? styles.subtaskTextCompleted : ''}`}
-                          onClick={() => !readOnly && setEditingSubtaskId(subtask.id)}
-                          style={readOnly ? { cursor: 'default' } : undefined}
-                        >
-                          {subtask.text || (readOnly ? '' : 'Click to edit')}
-                        </span>
-                      )}
-
-                      {!readOnly && (
-                        <>
-                          {subtaskIndex > 0 && (
-                            <button
-                              className={styles.moveSubtaskButton}
-                              onClick={() => handleMoveSubtask(task.id, subtask.id, 'up')}
-                              title="Move up"
-                            >
-                              ▲
-                            </button>
-                          )}
-                          {subtaskIndex < (task.subtasks?.length || 0) - 1 && (
-                            <button
-                              className={styles.moveSubtaskButton}
-                              onClick={() => handleMoveSubtask(task.id, subtask.id, 'down')}
-                              title="Move down"
-                            >
-                              ▼
-                            </button>
-                          )}
-                          <button
-                            className={styles.deleteSubtaskButton}
-                            onClick={() => handleDeleteSubtask(task.id, subtask.id)}
-                          >
-                            ✕
-                          </button>
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
+            <TaskItem
+              key={item.id}
+              task={item}
+              readOnly={readOnly}
+              isEditing={editingTaskId === item.id}
+              editingSubtaskId={editingSubtaskId}
+              isCollapsed={collapsedTasks.has(item.id)}
+              celebrationEmoji={celebratingTaskId === item.id ? celebrationEmoji : null}
+              isFirst={itemIndex === 0}
+              isLast={itemIndex === items.length - 1}
+              showHitArea={showHitArea}
+              hideBottomBorder={hideBottomBorder}
+              itemIndex={itemIndex}
+              onToggle={handleToggleTask}
+              onTextChange={handleTaskTextChange}
+              onStartEditing={setEditingTaskId}
+              onStopEditing={() => setEditingTaskId(null)}
+              onKeyDown={handleTaskKeyDown}
+              onDelete={handleDeleteTask}
+              onMove={handleMoveItem}
+              onAddSubtask={handleAddSubtask}
+              onToggleCollapse={toggleSubtasksCollapsed}
+              onAddSeparator={handleAddSeparator}
+              onToggleSubtask={handleToggleSubtask}
+              onSubtaskTextChange={handleSubtaskTextChange}
+              onStartEditingSubtask={setEditingSubtaskId}
+              onStopEditingSubtask={() => setEditingSubtaskId(null)}
+              onSubtaskKeyDown={handleSubtaskKeyDown}
+              onMoveSubtask={handleMoveSubtask}
+              onDeleteSubtask={handleDeleteSubtask}
+            />
           );
         })}
       </ul>
 
+      {/* Bottom controls */}
       {!readOnly && (
         <>
           <button className={styles.addButton} onClick={handleAddTask}>

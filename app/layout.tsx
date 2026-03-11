@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: '✅ tasks',
+  title: process.env.NODE_ENV === 'development' ? '✅ tasks [local]' : '✅ tasks',
   description: 'Weekly task management with gamification',
 };
 
